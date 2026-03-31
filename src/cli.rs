@@ -4,12 +4,24 @@ use clap::{Parser, Subcommand};
 #[command(name = "kaspa-wallet", version, about = "Kaspa CLI wallet")]
 pub struct Cli {
     /// wRPC server URL (e.g. wrpc://127.0.0.1:17110). Omit to use the public resolver.
-    #[arg(short = 's', long = "rpc-url", global = true)]
+    #[arg(long, short = 's', global = true)]
     pub rpc_url: Option<String>,
 
     /// Network ID (mainnet | testnet-10 | testnet-11 | simnet | devnet). [default: mainnet]
-    #[arg(short = 'n', long = "network", global = true, default_value = "mainnet")]
+    #[arg(long, short = 'n', global = true, default_value = "mainnet")]
     pub network: String,
+
+    /// Wallet password (omit to be prompted interactively)
+    #[arg(long, short = 'p', global = true)]
+    pub password: Option<String>,
+
+    /// Wallet name (filename under ~/.simply-kaspa-cli-wallet/<network>/). [default: main]
+    #[arg(long, short = 'w', global = true, default_value = "main")]
+    pub wallet_name: String,
+
+    /// Connection timeout in seconds. [default: 10]
+    #[arg(long, short = 't', global = true, default_value = "10")]
+    pub timeout: u64,
 
     #[command(subcommand)]
     pub command: Command,
@@ -19,10 +31,6 @@ pub struct Cli {
 pub enum Command {
     /// Create a new wallet (and its first account)
     Create {
-        /// Wallet name (used as filename under ~/.simply-kaspa-cli-wallet/<network>/)
-        #[arg(long, default_value = "main")]
-        wallet_name: String,
-
         /// Account name (optional, defaults to "default")
         #[arg(long)]
         account_name: Option<String>,
@@ -33,13 +41,5 @@ pub enum Command {
     },
 
     /// Show the balance of a wallet
-    Balance {
-        /// Wallet name
-        #[arg(long, default_value = "main")]
-        wallet_name: String,
-
-        /// Show per-account breakdown
-        #[arg(short = 'v', long)]
-        verbose: bool,
-    },
+    Balance,
 }

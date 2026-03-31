@@ -10,11 +10,12 @@ name = "kaspa-wallet"
 path = "src/main.rs"
 
 [dependencies]
-kaspa-wallet-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v1.1.0" }
-kaspa-consensus-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v1.1.0" }
-kaspa-bip32 = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v1.1.0" }
-kaspa-wallet-keys = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v1.1.0" }
-kaspa-wrpc-client = { git = "https://github.com/kaspanet/rusty-kaspa.git", tag = "v1.1.0" }
+kaspa-wallet-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "tn12" }
+kaspa-consensus-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "tn12" }
+kaspa-bip32 = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "tn12" }
+kaspa-wallet-keys = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "tn12" }
+kaspa-wrpc-client = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "tn12" }
+kaspa-rpc-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "tn12" }
 workflow-core = { version = "0.18.0" }
 tokio = { version = "1", features = ["full"] }
 clap = { version = "4", features = ["derive", "cargo"] }

@@ -13,27 +13,35 @@ async fn main() -> Result<()> {
 
     let network_id: NetworkId = args.network.parse().context("Invalid --network value")?;
 
+
     match args.command {
-        Command::Create { wallet_name, account_name, import } => {
-            let password = read_password("Wallet password: ")?;
+        Command::Create { account_name, import } => {
+            let password = match args.password {
+                Some(p) => p,
+                None => read_password_confirmed("Wallet password: ", "Confirm password: ")?,
+            };
             commands::create::run(
                 network_id,
                 args.rpc_url,
-                wallet_name,
+                args.wallet_name,
                 account_name,
                 import,
                 password,
             )
             .await?;
         }
-        Command::Balance { wallet_name, verbose } => {
-            let password = read_password("Wallet password: ")?;
+        Command::Balance => {
+            let password = match args.password {
+                Some(p) => p,
+                None => read_password("Wallet password: ")?,
+            };
+            let timeout = std::time::Duration::from_secs(args.timeout);
             commands::balance::run(
                 network_id,
                 args.rpc_url,
-                wallet_name,
-                verbose,
+                args.wallet_name,
                 password,
+                timeout,
             )
             .await?;
         }
@@ -44,4 +52,11 @@ async fn main() -> Result<()> {
 
 fn read_password(prompt: &str) -> Result<String> {
     rpassword::prompt_password(prompt).context("Failed to read password")
+}
+
+fn read_password_confirmed(prompt: &str, confirm_prompt: &str) -> Result<String> {
+    let password = rpassword::prompt_password(prompt).context("Failed to read password")?;
+    let confirm = rpassword::prompt_password(confirm_prompt).context("Failed to read password")?;
+    anyhow::ensure!(password == confirm, "Passwords do not match");
+    Ok(password)
 }
