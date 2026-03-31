@@ -43,6 +43,22 @@ async fn main() -> Result<()> {
             )
             .await?;
         }
+        Command::Send { to_address, amount, priority_fee } => {
+            let password = match args.password {
+                Some(p) => p,
+                None => read_password("Wallet password: ")?,
+            };
+            commands::send::run(
+                network_id,
+                args.rpc_url,
+                args.wallet_name,
+                password,
+                to_address,
+                amount,
+                priority_fee,
+            )
+            .await?;
+        }
         Command::Sweep => {
             let password = match args.password {
                 Some(p) => p,

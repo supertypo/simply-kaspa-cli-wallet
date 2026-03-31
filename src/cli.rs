@@ -39,6 +39,21 @@ pub enum Command {
     /// Show the balance of a wallet
     Balance,
 
+    /// Send KAS to an address
+    Send {
+        /// Destination address
+        #[arg(long, short = 't')]
+        to_address: String,
+
+        /// Amount to send in KAS (e.g. 100.5)
+        #[arg(long, short = 'a')]
+        amount: String,
+
+        /// Optional priority fee in KAS
+        #[arg(long)]
+        priority_fee: Option<String>,
+    },
+
     /// Sweep all UTXOs into a single UTXO at the account's first address
     Sweep,
 }
