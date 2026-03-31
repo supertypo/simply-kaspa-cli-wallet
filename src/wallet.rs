@@ -45,11 +45,10 @@ pub fn build_wallet(rpc_url: Option<String>, network_id: NetworkId) -> Result<Ar
 /// 1. Explicit URL given → return it.
 /// 2. testnet-N → DNS seeder `tnN-dnsseed.kasia.fyi`; try each returned IPv4 address
 ///    with a 5 s TCP probe in order; return first reachable node as `ws://ip:port`.
-/// 3. Everything else (mainnet, devnet, …) → public Kaspa resolver with `timeout`.
+/// 3. Everything else (mainnet, devnet, …) → public Kaspa resolver.
 pub async fn resolve_url(
     rpc_url: Option<String>,
     network_id: NetworkId,
-    timeout: std::time::Duration,
 ) -> Result<Option<String>> {
     if rpc_url.is_some() {
         return Ok(rpc_url);
@@ -68,9 +67,8 @@ pub async fn resolve_url(
 
     // Public resolver fallback (mainnet, devnet, simnet, or testnet when DNS seeder fails)
     let resolver = Resolver::default();
-    let url = tokio::time::timeout(timeout, resolver.get_url(WrpcEncoding::Borsh, network_id))
+    let url = resolver.get_url(WrpcEncoding::Borsh, network_id)
         .await
-        .context("Resolver timed out: no public nodes found for this network")?
         .context("Resolver failed to find a public node")?;
     Ok(Some(url))
 }
@@ -95,6 +93,20 @@ async fn dns_seeder_resolve(seeder_host: &str, port: u16) -> Result<String> {
     }
 
     anyhow::bail!("DNS seeder {} returned {} address(es) but none responded on port {}", seeder_host, addrs.len(), port)
+}
+
+/// Returns the block explorer base URL for the given network, or `None`
+/// for networks without a known explorer.
+pub fn explorer_base(network_id: &NetworkId) -> Option<String> {
+    use kaspa_consensus_core::network::NetworkType;
+    match network_id.network_type {
+        NetworkType::Mainnet => Some("https://kaspa.stream".to_string()),
+        NetworkType::Testnet => {
+            let suffix = network_id.suffix.unwrap_or(10);
+            Some(format!("https://tn{}.kaspa.stream", suffix))
+        }
+        _ => None,
+    }
 }
 
 fn home_dir() -> Option<String> {

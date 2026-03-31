@@ -19,10 +19,6 @@ pub struct Cli {
     #[arg(long, short = 'w', global = true, default_value = "main")]
     pub wallet_name: String,
 
-    /// Connection timeout in seconds. [default: 10]
-    #[arg(long, short = 't', global = true, default_value = "10")]
-    pub timeout: u64,
-
     #[command(subcommand)]
     pub command: Command,
 }
@@ -42,4 +38,7 @@ pub enum Command {
 
     /// Show the balance of a wallet
     Balance,
+
+    /// Sweep all UTXOs into a single UTXO at the account's first address
+    Sweep,
 }

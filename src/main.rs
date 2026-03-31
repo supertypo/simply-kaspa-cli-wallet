@@ -35,13 +35,24 @@ async fn main() -> Result<()> {
                 Some(p) => p,
                 None => read_password("Wallet password: ")?,
             };
-            let timeout = std::time::Duration::from_secs(args.timeout);
             commands::balance::run(
                 network_id,
                 args.rpc_url,
                 args.wallet_name,
                 password,
-                timeout,
+            )
+            .await?;
+        }
+        Command::Sweep => {
+            let password = match args.password {
+                Some(p) => p,
+                None => read_password("Wallet password: ")?,
+            };
+            commands::sweep::run(
+                network_id,
+                args.rpc_url,
+                args.wallet_name,
+                password,
             )
             .await?;
         }

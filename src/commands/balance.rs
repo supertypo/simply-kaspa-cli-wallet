@@ -24,14 +24,13 @@ pub async fn run(
     rpc_url: Option<String>,
     wallet_name: String,
     password: String,
-    timeout: std::time::Duration,
 ) -> Result<()> {
     init_storage(&network_id)?;
 
     // Resolve the URL first — when none is given, ask the public resolver.
     // This is required because try_with_wrpc hard-codes a localhost ctor_url
     // that would otherwise shadow the resolver inside connect(None).
-    let rpc_url = resolve_url(rpc_url, network_id, timeout).await?;
+    let rpc_url = resolve_url(rpc_url, network_id).await?;
 
     let wallet = build_wallet(rpc_url.clone(), network_id)?;
     let wallet_arc = Arc::clone(&wallet);
@@ -41,9 +40,8 @@ pub async fn run(
 
     wallet.start().await.context("Failed to start wallet")?;
 
-    tokio::time::timeout(timeout, wallet_arc.clone().connect(rpc_url.clone(), &network_id))
+    wallet_arc.clone().connect(rpc_url.clone(), &network_id)
         .await
-        .context("Connection timed out: node did not respond")?
         .context("Failed to connect to node")?;
 
     let wallet_secret = Secret::new(password.into_bytes());
@@ -114,6 +112,7 @@ pub async fn run(
         pending: u64,
     }
     let mut address_utxos: HashMap<AccountId, Vec<(Address, AddrRow)>> = HashMap::new();
+    let mut utxo_counts: HashMap<AccountId, usize> = HashMap::new();
     {
         for descriptor in &fresh_descriptors {
             // Mature UTXOs from wallet (already scanned, spendable)
@@ -147,6 +146,8 @@ pub async fn run(
             } else {
                 vec![]
             };
+
+            utxo_counts.insert(descriptor.account_id, rpc_entries.len());
 
             let mut rpc_total_by_addr: HashMap<String, u64> = HashMap::new();
             for entry in &rpc_entries {
@@ -199,11 +200,13 @@ pub async fn run(
         // per-address breakdown are always consistent (same point in time).
         let mature: u64 = rows.map(|r| r.iter().map(|(_, row)| row.balance).sum()).unwrap_or(0);
         let pending: u64 = rows.map(|r| r.iter().map(|(_, row)| row.pending).sum()).unwrap_or(0);
+        let utxo_count = utxo_counts.get(&descriptor.account_id).copied().unwrap_or(0);
         println!("  Account : {}", name);
         println!("  Balance : {}", sompi_to_kaspa_string_with_suffix(mature, &network_type));
         if pending > 0 {
             println!("  Pending : {}", sompi_to_kaspa_string_with_suffix(pending, &network_type));
         }
+        println!("  UTXOs   : {}", utxo_count);
         println!();
 
         if let Some(rows) = address_utxos.get(&descriptor.account_id) {
