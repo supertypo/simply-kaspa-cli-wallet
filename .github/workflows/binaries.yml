@@ -34,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y pkg-config libssl-dev libpq-dev gcc protobuf-compiler
+          sudo apt install -y pkg-config libssl-dev gcc
 
       - name: Build binary
         run: |

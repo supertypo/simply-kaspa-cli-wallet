@@ -10,10 +10,7 @@ RUN apk --no-cache add \
   musl-dev \
   g++ \
   clang18-dev \
-  linux-headers \
-  openssl-dev \
-  postgresql-dev \
-  curl
+  linux-headers
 
 WORKDIR /work
 
@@ -38,8 +35,7 @@ RUN cargo build --release
 FROM alpine
 
 RUN apk --no-cache add \
-  libstdc++ \
-  postgresql-client
+  libstdc++
 
 COPY --from=builder /work/target/release/kaspa-wallet /usr/local/bin/
 
