@@ -2,8 +2,18 @@
 name = "simply-kaspa-cli-wallet"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88.0"
 authors = ["suprtypo@pm.me"]
-license = "MIT"
+license-file = "LICENSE"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+lto = "thin"
+strip = true
+overflow-checks = true
+panic = "abort"
 
 [[bin]]
 name = "kaspa-wallet"
@@ -21,9 +31,3 @@ tokio = { version = "1", features = ["full"] }
 clap = { version = "4", features = ["derive", "cargo"] }
 rpassword = "7"
 anyhow = "1"
-zeroize = "1"
-
-# workflow-node 0.18.0 and the kaspa git crates require wasm-bindgen 0.2.100.
-# Newer versions of wasm-bindgen removed the Eq impl on JsValue which breaks workflow-node.
-# Pinning here forces the dependency resolver to select exactly this version.
-wasm-bindgen = "=0.2.100"

@@ -4601,9 +4601,7 @@ dependencies = [
  "kaspa-wrpc-client",
  "rpassword",
  "tokio",
- "wasm-bindgen",
  "workflow-core",
- "zeroize",
 ]
 
 [[package]]
