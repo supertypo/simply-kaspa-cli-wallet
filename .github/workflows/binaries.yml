@@ -43,14 +43,14 @@ jobs:
 
       - name: Compress binary with arch suffix
         run: |
-          BIN=target/${{ matrix.target }}/release/simply-kaspa-cli-wallet
+          BIN=target/${{ matrix.target }}/release/kaspa-wallet
           chmod 755 "$BIN"
-          cp "$BIN" "simply-kaspa-cli-wallet-${{ matrix.arch }}"
-          gzip -f "simply-kaspa-cli-wallet-${{ matrix.arch }}"
+          cp "$BIN" "kaspa-wallet-${{ matrix.arch }}"
+          gzip -f "kaspa-wallet-${{ matrix.arch }}"
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v1
         with:
-          files: simply-kaspa-cli-wallet-${{ matrix.arch }}.gz
+          files: kaspa-wallet-${{ matrix.arch }}.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
