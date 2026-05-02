@@ -22,8 +22,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Add target
-        run: rustup target add ${{ matrix.target }}
+      - name: Read Rust version
+        run: echo "RUST_VERSION=$(grep '^rust-version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')" >> $GITHUB_ENV
+
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install ${{ env.RUST_VERSION }}
+          rustup default ${{ env.RUST_VERSION }}
+          rustup target add ${{ matrix.target }}
 
       - name: Install dependencies
         run: |

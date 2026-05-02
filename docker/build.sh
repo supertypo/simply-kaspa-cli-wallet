@@ -28,6 +28,7 @@ echo "============================================================="
 
 tag=$(cd "$REPO_DIR" && git log -n1 --format="%cs.%h")
 gitDescribe=$(cd "$REPO_DIR" && git describe --tags --dirty --always)
+RUST_VERSION=$(grep '^rust-version' "$REPO_DIR/Cargo.toml" | sed 's/.*"\(.*\)".*/\1/')
 
 docker=docker
 id -nG $USER | grep -qw docker || docker="sudo $docker"
@@ -41,6 +42,7 @@ plain_build() {
   $docker build --pull \
     --build-arg REPO_DIR="$REPO_DIR" \
     --build-arg VERSION="$gitDescribe" \
+    --build-arg RUST_VERSION="$RUST_VERSION" \
     --tag ${DOCKER_REPO}:$tag "$BUILD_DIR"
 
   for version in $VERSIONS; do
@@ -77,6 +79,7 @@ multi_arch_build() {
   $docker buildx build --pull --platform=$(echo $ARCHES | sed 's/ /,/g') $dockerRepoArgs \
     --build-arg REPO_DIR="$REPO_DIR" \
     --build-arg VERSION="$gitDescribe" \
+    --build-arg RUST_VERSION="$RUST_VERSION" \
     --tag $DOCKER_REPO:$tag \
     "$BUILD_DIR"
   echo "============================================================="
