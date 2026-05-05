@@ -31,7 +31,7 @@ Everything listed below is provided by the SDK crates and requires **no custom l
 ## What This Repo Adds
 
 - **CLI parsing** (clap) — global flags: `--rpc-url`, `--network`, `--password`, `--wallet-name`.
-- **DNS-seeder resolution for testnet-12**: queries `tn12-dnsseed.kasia.fyi`, TCP-probes each returned IPv4 (3 s timeout), returns the first live node as `ws://ip:port`. All other networks fall through to the SDK's public resolver.
+- **DNS-seeder resolution for testnet-10 and testnet-12**: queries `n-testnet-10.kaspa.ws` / `n-testnet-12.kaspa.ws` respectively, TCP-probes each returned IPv4 (3 s timeout), returns the first live node as `ws://ip:port`. All other networks (including mainnet) fall through to the SDK's public resolver.
 - **Storage path wiring**: calls the SDK's unsafe `set_default_storage_folder` to point at `~/.simply-kaspa-cli-wallet/<network>/` before any wallet operation.
 - **Per-address UTXO breakdown** in `balance`: combines the SDK's mature-UTXO data with a direct `rpc_api().get_utxos_by_addresses()` call to also surface pending (immature coinbase) amounts.
 - **Explorer links**: prints `kaspa.stream` (mainnet) or `tn{N}.kaspa.stream` (testnet) URLs for each submitted transaction.

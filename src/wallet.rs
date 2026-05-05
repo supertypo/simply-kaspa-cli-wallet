@@ -43,9 +43,9 @@ pub fn build_wallet(rpc_url: Option<String>, network_id: NetworkId) -> Result<Ar
 ///
 /// Strategy:
 /// 1. Explicit URL given → return it.
-/// 2. testnet-N → DNS seeder `tnN-dnsseed.kasia.fyi`; try each returned IPv4 address
-///    with a 5 s TCP probe in order; return first reachable node as `ws://ip:port`.
-/// 3. Everything else (mainnet, devnet, …) → public Kaspa resolver.
+/// 2. testnet-10 → DNS seeder `n-testnet-10.kaspa.ws`; TCP-probe each IPv4 address.
+/// 3. testnet-12 → DNS seeder `n-testnet-12.kaspa.ws`; TCP-probe each IPv4 address.
+/// 4. Everything else (mainnet, other testnets, devnet, …) → public Kaspa resolver.
 pub async fn resolve_url(
     rpc_url: Option<String>,
     network_id: NetworkId,
@@ -54,18 +54,26 @@ pub async fn resolve_url(
         return Ok(rpc_url);
     }
 
-    // DNS seeder path for testnet-12
-    if network_id.network_type == kaspa_consensus_core::network::NetworkType::Testnet
-        && network_id.suffix == Some(12)
-    {
+    if network_id.network_type == kaspa_consensus_core::network::NetworkType::Testnet {
         let port = network_id.network_type.default_borsh_rpc_port();
-        let url = dns_seeder_resolve("tn12-dnsseed.kasia.fyi", port)
-            .await
-            .context("DNS seeder for testnet-12 returned no reachable nodes")?;
-        return Ok(Some(url));
+        match network_id.suffix {
+            Some(10) => {
+                let url = dns_seeder_resolve("n-testnet-10.kaspa.ws", port)
+                    .await
+                    .context("DNS seeder for testnet-10 returned no reachable nodes")?;
+                return Ok(Some(url));
+            }
+            Some(12) => {
+                let url = dns_seeder_resolve("n-testnet-12.kaspa.ws", port)
+                    .await
+                    .context("DNS seeder for testnet-12 returned no reachable nodes")?;
+                return Ok(Some(url));
+            }
+            _ => {}
+        }
     }
 
-    // Public resolver fallback (mainnet, devnet, simnet, or testnet when DNS seeder fails)
+    // Public resolver fallback (mainnet, devnet, simnet, or unsupported testnet suffixes)
     let resolver = Resolver::default();
     let url = resolver.get_url(WrpcEncoding::Borsh, network_id)
         .await
