@@ -1,6 +1,6 @@
 # simply-kaspa-cli-wallet — Agent Reference
 
-Important: Please keep this file up to date.
+Important: Please keep AGENTS.md and README.md up to date.
 
 ## What This Project Does
 
