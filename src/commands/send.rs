@@ -33,20 +33,12 @@ pub async fn run(
 ) -> Result<()> {
     init_storage(&network_id)?;
 
-    // Parse and validate priority fee early — before any network connection
     let priority_fee_sompi: i64 = match priority_fee {
         Some(ref s) => kaspa_wallet_core::utils::try_kaspa_str_to_sompi_i64(s)
             .context("Invalid priority fee")?
             .unwrap_or(0),
         None => 0,
     };
-    const MAX_PRIORITY_FEE_SOMPI: i64 = 10_000_000_000; // 100 KAS
-    if priority_fee_sompi > MAX_PRIORITY_FEE_SOMPI {
-        anyhow::bail!(
-            "Priority fee {} exceeds the maximum allowed (100 KAS). Aborting.",
-            sompi_to_kaspa_string_with_suffix(priority_fee_sompi as u64, &network_id.network_type)
-        );
-    }
 
     let rpc_url = resolve_url(rpc_url, network_id).await?;
     let wallet = build_wallet(rpc_url.clone(), network_id)?;
@@ -182,11 +174,21 @@ pub async fn run(
         .await
         .context("Failed to estimate transaction")?;
 
+    // Abort if total estimated fees exceed 100 KAS
+    const MAX_FEE_SOMPI: u64 = 10_000_000_000; // 100 KAS
+    if estimate.aggregate_fees > MAX_FEE_SOMPI {
+        wallet.stop().await.ok();
+        anyhow::bail!(
+            "Estimated fees {} exceed the maximum allowed (100 KAS). Aborting.",
+            sompi_to_kaspa_string_with_suffix(estimate.aggregate_fees, &network_id.network_type)
+        );
+    }
+
+    let high_fee = estimate.aggregate_fees > 1_000_000_000; // > 10 KAS
     let total_sompi = amount_sompi + estimate.aggregate_fees;
     let fees_str =
         sompi_to_kaspa_string_with_suffix(estimate.aggregate_fees, &network_id.network_type);
-    let fees_display = if priority_fee_sompi > 1_000_000_000 {
-        // > 10 KAS priority fee: highlight in bright orange
+    let fees_display = if high_fee {
         format!("\x1b[38;5;208m{}\x1b[0m", fees_str)
     } else {
         fees_str
@@ -210,12 +212,12 @@ pub async fn run(
     if !no_confirmation {
         if interactive {
             use std::io::{BufRead, Write};
-            // Extra dedicated warning + confirmation when priority fee is unusually high (> 10 KAS)
-            if priority_fee_sompi > 1_000_000_000 {
+            // Extra dedicated warning + confirmation when total estimated fees are unusually high (> 10 KAS)
+            if high_fee {
                 println!(
-                    "\x1b[38;5;208m⚠  Priority fee is unusually high ({}).\x1b[0m",
+                    "\x1b[38;5;208m⚠  Fee is unusually high ({}).\x1b[0m",
                     sompi_to_kaspa_string_with_suffix(
-                        priority_fee_sompi as u64,
+                        estimate.aggregate_fees,
                         &network_id.network_type
                     )
                 );
@@ -248,6 +250,15 @@ pub async fn run(
             println!();
         } else {
             use std::io::Write;
+            if high_fee {
+                println!(
+                    "\x1b[38;5;208m⚠  Fee is unusually high ({}).\x1b[0m",
+                    sompi_to_kaspa_string_with_suffix(
+                        estimate.aggregate_fees,
+                        &network_id.network_type
+                    )
+                );
+            }
             for i in (1u8..=9).rev() {
                 print!("\rSending in {}... (Ctrl+C to abort)", i);
                 std::io::stdout().flush().ok();
