@@ -10,9 +10,9 @@ use kaspa_wallet_core::{
     },
     deterministic::AccountId,
     events::Events,
-    tx::{Fees, generator::summary::GeneratorSummary, PaymentDestination, PaymentOutputs},
-    utils::{sompi_to_kaspa_string_with_suffix, try_kaspa_str_to_sompi},
     prelude::Address,
+    tx::{Fees, PaymentDestination, PaymentOutputs, generator::summary::GeneratorSummary},
+    utils::{sompi_to_kaspa_string_with_suffix, try_kaspa_str_to_sompi},
 };
 use kaspa_wallet_keys::secret::Secret;
 use workflow_core::{abortable::Abortable, channel::MultiplexerChannel};
@@ -183,7 +183,8 @@ pub async fn run(
         .context("Failed to estimate transaction")?;
 
     let total_sompi = amount_sompi + estimate.aggregate_fees;
-    let fees_str = sompi_to_kaspa_string_with_suffix(estimate.aggregate_fees, &network_id.network_type);
+    let fees_str =
+        sompi_to_kaspa_string_with_suffix(estimate.aggregate_fees, &network_id.network_type);
     let fees_display = if priority_fee_sompi > 1_000_000_000 {
         // > 10 KAS priority fee: highlight in bright orange
         format!("\x1b[38;5;208m{}\x1b[0m", fees_str)
@@ -199,23 +200,32 @@ pub async fn run(
         "Total  : {}",
         sompi_to_kaspa_string_with_suffix(total_sompi, &network_id.network_type)
     );
-    println!("UTXOs  : {} ({} transaction(s))", estimate.aggregated_utxos, estimate.number_of_generated_transactions);
+    println!(
+        "UTXOs  : {} ({} transaction(s))",
+        estimate.aggregated_utxos, estimate.number_of_generated_transactions
+    );
     println!("To     : {}", address);
     println!();
 
     if !no_confirmation {
         if interactive {
-            use std::io::{Write, BufRead};
+            use std::io::{BufRead, Write};
             // Extra dedicated warning + confirmation when priority fee is unusually high (> 10 KAS)
             if priority_fee_sompi > 1_000_000_000 {
                 println!(
                     "\x1b[38;5;208m⚠  Priority fee is unusually high ({}).\x1b[0m",
-                    sompi_to_kaspa_string_with_suffix(priority_fee_sompi as u64, &network_id.network_type)
+                    sompi_to_kaspa_string_with_suffix(
+                        priority_fee_sompi as u64,
+                        &network_id.network_type
+                    )
                 );
                 print!("This fee seems excessive. Are you sure? [y/N]: ");
                 std::io::stdout().flush().ok();
                 let mut warn_line = String::new();
-                std::io::stdin().lock().read_line(&mut warn_line).context("Failed to read input")?;
+                std::io::stdin()
+                    .lock()
+                    .read_line(&mut warn_line)
+                    .context("Failed to read input")?;
                 if !warn_line.trim().eq_ignore_ascii_case("y") {
                     println!("Aborted.");
                     wallet.stop().await.ok();
@@ -226,7 +236,10 @@ pub async fn run(
             print!("Confirm? [y/N]: ");
             std::io::stdout().flush().ok();
             let mut line = String::new();
-            std::io::stdin().lock().read_line(&mut line).context("Failed to read input")?;
+            std::io::stdin()
+                .lock()
+                .read_line(&mut line)
+                .context("Failed to read input")?;
             if !line.trim().eq_ignore_ascii_case("y") {
                 println!("Aborted.");
                 wallet.stop().await.ok();

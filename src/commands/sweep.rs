@@ -4,7 +4,10 @@ use anyhow::{Context, Result};
 use kaspa_consensus_core::network::NetworkId;
 use kaspa_wallet_core::{
     account::Account,
-    api::{message::{AccountsGetUtxosRequest, WalletOpenRequest}, traits::WalletApi},
+    api::{
+        message::{AccountsGetUtxosRequest, WalletOpenRequest},
+        traits::WalletApi,
+    },
     deterministic::AccountId,
     events::Events,
     tx::{Fees, PaymentDestination, generator::summary::GeneratorSummary},
@@ -33,7 +36,9 @@ pub async fn run(
 
     wallet.start().await.context("Failed to start wallet")?;
 
-    wallet.clone().connect(rpc_url.clone(), &network_id)
+    wallet
+        .clone()
+        .connect(rpc_url.clone(), &network_id)
         .await
         .context("Failed to connect to node")?;
 
@@ -113,7 +118,10 @@ pub async fn run(
     let total_balance: u64 = utxo_resp.utxos.iter().map(|u| u.amount).sum();
 
     println!("  Account : {}", account_name);
-    println!("  Balance : {}", sompi_to_kaspa_string_with_suffix(total_balance, &network_id.network_type));
+    println!(
+        "  Balance : {}",
+        sompi_to_kaspa_string_with_suffix(total_balance, &network_id.network_type)
+    );
     println!("  UTXOs   : {}", total_utxos);
     println!();
 
@@ -134,16 +142,22 @@ pub async fn run(
         "Fees   : {}",
         sompi_to_kaspa_string_with_suffix(estimate.aggregate_fees, &network_id.network_type)
     );
-    println!("UTXOs  : {} ({} transaction(s))", estimate.aggregated_utxos, estimate.number_of_generated_transactions);
+    println!(
+        "UTXOs  : {} ({} transaction(s))",
+        estimate.aggregated_utxos, estimate.number_of_generated_transactions
+    );
     println!();
 
     if !no_confirmation {
         if interactive {
-            use std::io::{Write, BufRead};
+            use std::io::{BufRead, Write};
             print!("Confirm? [y/N]: ");
             std::io::stdout().flush().ok();
             let mut line = String::new();
-            std::io::stdin().lock().read_line(&mut line).context("Failed to read input")?;
+            std::io::stdin()
+                .lock()
+                .read_line(&mut line)
+                .context("Failed to read input")?;
             if !line.trim().eq_ignore_ascii_case("y") {
                 println!("Aborted.");
                 wallet.stop().await.ok();
@@ -200,12 +214,11 @@ pub async fn run(
         println!();
     } else {
         println!();
-        let fees = sompi_to_kaspa_string_with_suffix(summary.aggregate_fees, &network_id.network_type);
+        let fees =
+            sompi_to_kaspa_string_with_suffix(summary.aggregate_fees, &network_id.network_type);
         println!(
             "Swept {} UTXOs across {} transaction(s). Fees: {}",
-            summary.aggregated_utxos,
-            summary.number_of_generated_transactions,
-            fees
+            summary.aggregated_utxos, summary.number_of_generated_transactions, fees
         );
         println!();
     }

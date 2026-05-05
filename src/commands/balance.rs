@@ -9,9 +9,9 @@ use kaspa_wallet_core::{
         message::{AccountsEnumerateRequest, AccountsGetUtxosRequest, WalletOpenRequest},
         traits::WalletApi,
     },
-    prelude::Address,
     deterministic::AccountId,
     events::Events,
+    prelude::Address,
     utils::sompi_to_kaspa_string_with_suffix,
 };
 use kaspa_wallet_keys::secret::Secret;
@@ -40,7 +40,9 @@ pub async fn run(
 
     wallet.start().await.context("Failed to start wallet")?;
 
-    wallet_arc.clone().connect(rpc_url.clone(), &network_id)
+    wallet_arc
+        .clone()
+        .connect(rpc_url.clone(), &network_id)
         .await
         .context("Failed to connect to node")?;
 
@@ -58,9 +60,7 @@ pub async fn run(
         .await
         .context("Failed to open wallet")?;
 
-    let descriptors = open_resp
-        .account_descriptors
-        .unwrap_or_default();
+    let descriptors = open_resp.account_descriptors.unwrap_or_default();
 
     // Activate all accounts to trigger UTXO scan and balance events
     {
@@ -139,7 +139,8 @@ pub async fn run(
             // Subtracting mature gives us pending (immature coinbase) per address.
             let known_addresses: Vec<Address> = addr_obj.values().cloned().collect();
             let rpc_entries = if !known_addresses.is_empty() {
-                wallet.rpc_api()
+                wallet
+                    .rpc_api()
                     .get_utxos_by_addresses(known_addresses)
                     .await
                     .context("Failed to get UTXOs from node")?
@@ -152,8 +153,11 @@ pub async fn run(
             let mut rpc_total_by_addr: HashMap<String, u64> = HashMap::new();
             for entry in &rpc_entries {
                 if let Some(addr) = &entry.address {
-                    *rpc_total_by_addr.entry(addr.to_string()).or_default() += entry.utxo_entry.amount;
-                    addr_obj.entry(addr.to_string()).or_insert_with(|| addr.clone());
+                    *rpc_total_by_addr.entry(addr.to_string()).or_default() +=
+                        entry.utxo_entry.amount;
+                    addr_obj
+                        .entry(addr.to_string())
+                        .or_insert_with(|| addr.clone());
                 }
             }
 
@@ -174,7 +178,13 @@ pub async fn run(
                     if mature == 0 && pending == 0 {
                         return None;
                     }
-                    Some((addr, AddrRow { balance: mature, pending }))
+                    Some((
+                        addr,
+                        AddrRow {
+                            balance: mature,
+                            pending,
+                        },
+                    ))
                 })
                 .collect();
             rows.sort_by(|a, b| b.1.balance.cmp(&a.1.balance));
@@ -198,13 +208,26 @@ pub async fn run(
         let rows = address_utxos.get(&descriptor.account_id);
         // Derive totals from the RPC-based per-address data so account summary and
         // per-address breakdown are always consistent (same point in time).
-        let mature: u64 = rows.map(|r| r.iter().map(|(_, row)| row.balance).sum()).unwrap_or(0);
-        let pending: u64 = rows.map(|r| r.iter().map(|(_, row)| row.pending).sum()).unwrap_or(0);
-        let utxo_count = utxo_counts.get(&descriptor.account_id).copied().unwrap_or(0);
+        let mature: u64 = rows
+            .map(|r| r.iter().map(|(_, row)| row.balance).sum())
+            .unwrap_or(0);
+        let pending: u64 = rows
+            .map(|r| r.iter().map(|(_, row)| row.pending).sum())
+            .unwrap_or(0);
+        let utxo_count = utxo_counts
+            .get(&descriptor.account_id)
+            .copied()
+            .unwrap_or(0);
         println!("  Account : {}", name);
-        println!("  Balance : {}", sompi_to_kaspa_string_with_suffix(mature, &network_type));
+        println!(
+            "  Balance : {}",
+            sompi_to_kaspa_string_with_suffix(mature, &network_type)
+        );
         if pending > 0 {
-            println!("  Pending : {}", sompi_to_kaspa_string_with_suffix(pending, &network_type));
+            println!(
+                "  Pending : {}",
+                sompi_to_kaspa_string_with_suffix(pending, &network_type)
+            );
         }
         println!("  UTXOs   : {}", utxo_count);
         println!();
@@ -213,7 +236,10 @@ pub async fn run(
             let addr_col = 72;
             let has_pending = rows.iter().any(|(_, r)| r.pending > 0);
             if has_pending {
-                println!("  {:<addr_col$}  {:>26}  {:>26}", "Address", "Balance", "Pending");
+                println!(
+                    "  {:<addr_col$}  {:>26}  {:>26}",
+                    "Address", "Balance", "Pending"
+                );
                 println!("  {}", "-".repeat(addr_col + 57));
                 for (addr, row) in rows {
                     let bal_str = sompi_to_kaspa_string_with_suffix(row.balance, &network_type);
@@ -222,7 +248,12 @@ pub async fn run(
                     } else {
                         String::new()
                     };
-                    println!("  {:<addr_col$}  {:>26}  {:>26}", addr.to_string(), bal_str, pend_str);
+                    println!(
+                        "  {:<addr_col$}  {:>26}  {:>26}",
+                        addr.to_string(),
+                        bal_str,
+                        pend_str
+                    );
                 }
             } else {
                 println!("  {:<addr_col$}  {:>26}", "Address", "Balance");

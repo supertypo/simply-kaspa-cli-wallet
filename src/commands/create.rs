@@ -62,7 +62,9 @@ pub async fn run(
     };
 
     // --- 3. Register private key ---
-    let payment_secret_opt = payment_secret.as_deref().map(|s| Secret::new(s.as_bytes().to_vec()));
+    let payment_secret_opt = payment_secret
+        .as_deref()
+        .map(|s| Secret::new(s.as_bytes().to_vec()));
     let prv_key_args = PrvKeyDataCreateArgs::new(
         None,
         payment_secret_opt.clone(),

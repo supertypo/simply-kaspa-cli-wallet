@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use kaspa_consensus_core::network::NetworkId;
 use kaspa_wallet_core::wallet::Wallet;
-use kaspa_wrpc_client::{resolver::Resolver, WrpcEncoding};
+use kaspa_wrpc_client::{WrpcEncoding, resolver::Resolver};
 
 /// Initialize local storage under `~/.simply-kaspa-cli-wallet/<network>/`.
 ///
@@ -46,10 +46,7 @@ pub fn build_wallet(rpc_url: Option<String>, network_id: NetworkId) -> Result<Ar
 /// 2. testnet-10 → DNS seeder `n-testnet-10.kaspa.ws`; TCP-probe each IPv4 address.
 /// 3. testnet-12 → DNS seeder `n-testnet-12.kaspa.ws`; TCP-probe each IPv4 address.
 /// 4. Everything else (mainnet, other testnets, devnet, …) → public Kaspa resolver.
-pub async fn resolve_url(
-    rpc_url: Option<String>,
-    network_id: NetworkId,
-) -> Result<Option<String>> {
+pub async fn resolve_url(rpc_url: Option<String>, network_id: NetworkId) -> Result<Option<String>> {
     if rpc_url.is_some() {
         return Ok(rpc_url);
     }
@@ -75,7 +72,8 @@ pub async fn resolve_url(
 
     // Public resolver fallback (mainnet, devnet, simnet, or unsupported testnet suffixes)
     let resolver = Resolver::default();
-    let url = resolver.get_url(WrpcEncoding::Borsh, network_id)
+    let url = resolver
+        .get_url(WrpcEncoding::Borsh, network_id)
         .await
         .context("Resolver failed to find a public node")?;
     Ok(Some(url))
@@ -86,8 +84,11 @@ pub async fn resolve_url(
 async fn dns_seeder_resolve(seeder_host: &str, port: u16) -> Result<String> {
     let probe_addr = format!("{}:{}", seeder_host, port);
 
-    let addrs: Vec<std::net::SocketAddr> =
-        tokio::net::lookup_host(&probe_addr).await.context(format!("DNS lookup failed for {}", seeder_host))?.filter(|a| a.is_ipv4()).collect();
+    let addrs: Vec<std::net::SocketAddr> = tokio::net::lookup_host(&probe_addr)
+        .await
+        .context(format!("DNS lookup failed for {}", seeder_host))?
+        .filter(|a| a.is_ipv4())
+        .collect();
 
     if addrs.is_empty() {
         anyhow::bail!("DNS seeder {} returned no IPv4 addresses", seeder_host);
@@ -95,12 +96,20 @@ async fn dns_seeder_resolve(seeder_host: &str, port: u16) -> Result<String> {
 
     let probe_timeout = std::time::Duration::from_secs(3);
     for addr in &addrs {
-        if tokio::time::timeout(probe_timeout, tokio::net::TcpStream::connect(addr)).await.is_ok_and(|r| r.is_ok()) {
+        if tokio::time::timeout(probe_timeout, tokio::net::TcpStream::connect(addr))
+            .await
+            .is_ok_and(|r| r.is_ok())
+        {
             return Ok(format!("ws://{}:{}", addr.ip(), port));
         }
     }
 
-    anyhow::bail!("DNS seeder {} returned {} address(es) but none responded on port {}", seeder_host, addrs.len(), port)
+    anyhow::bail!(
+        "DNS seeder {} returned {} address(es) but none responded on port {}",
+        seeder_host,
+        addrs.len(),
+        port
+    )
 }
 
 /// Returns the block explorer base URL for the given network, or `None`
@@ -118,5 +127,7 @@ pub fn explorer_base(network_id: &NetworkId) -> Option<String> {
 }
 
 fn home_dir() -> Option<String> {
-    std::env::var("HOME").ok().or_else(|| std::env::var("USERPROFILE").ok())
+    std::env::var("HOME")
+        .ok()
+        .or_else(|| std::env::var("USERPROFILE").ok())
 }

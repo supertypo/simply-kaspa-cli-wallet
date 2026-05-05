@@ -2,11 +2,9 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use kaspa_consensus_core::network::NetworkId;
-use kaspa_wallet_core::{
-    api::{
-        message::{AccountsEnumerateRequest, PrvKeyDataGetRequest, WalletOpenRequest},
-        traits::WalletApi,
-    },
+use kaspa_wallet_core::api::{
+    message::{AccountsEnumerateRequest, PrvKeyDataGetRequest, WalletOpenRequest},
+    traits::WalletApi,
 };
 use kaspa_wallet_keys::secret::Secret;
 

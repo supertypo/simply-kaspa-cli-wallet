@@ -13,9 +13,11 @@ async fn main() -> Result<()> {
 
     let network_id: NetworkId = args.network.parse().context("Invalid --network value")?;
 
-
     match args.command {
-        Command::Create { account_name, import } => {
+        Command::Create {
+            account_name,
+            import,
+        } => {
             let (password, payment_secret) = match args.password {
                 Some(p) => {
                     // Non-interactive: use --payment-secret if provided, else None
@@ -48,15 +50,14 @@ async fn main() -> Result<()> {
                 Some(p) => p,
                 None => read_password("Wallet password: ")?,
             };
-            commands::balance::run(
-                network_id,
-                args.rpc_url,
-                args.wallet_name,
-                password,
-            )
-            .await?;
+            commands::balance::run(network_id, args.rpc_url, args.wallet_name, password).await?;
         }
-        Command::Send { to_address, amount, priority_fee, payload } => {
+        Command::Send {
+            to_address,
+            amount,
+            priority_fee,
+            payload,
+        } => {
             let (password, interactive, priority_fee) = match args.password {
                 Some(p) => (p, false, priority_fee),
                 None => {
@@ -103,13 +104,8 @@ async fn main() -> Result<()> {
                 Some(p) => p,
                 None => read_password("Wallet password: ")?,
             };
-            commands::export::run(
-                network_id,
-                args.wallet_name,
-                password,
-                args.payment_secret,
-            )
-            .await?;
+            commands::export::run(network_id, args.wallet_name, password, args.payment_secret)
+                .await?;
         }
     }
 
@@ -130,11 +126,16 @@ fn read_password_confirmed(prompt: &str, confirm_prompt: &str) -> Result<String>
 /// Interactively ask whether the user wants a BIP39 payment password.
 /// Returns `Some(secret)` if yes, `None` if no.
 fn ask_payment_secret() -> Result<Option<String>> {
-    use std::io::{Write, BufRead};
+    use std::io::{BufRead, Write};
     print!("Use a payment password? [y/N]: ");
-    std::io::stdout().flush().context("Failed to flush stdout")?;
+    std::io::stdout()
+        .flush()
+        .context("Failed to flush stdout")?;
     let mut line = String::new();
-    std::io::stdin().lock().read_line(&mut line).context("Failed to read input")?;
+    std::io::stdin()
+        .lock()
+        .read_line(&mut line)
+        .context("Failed to read input")?;
     if line.trim().eq_ignore_ascii_case("y") {
         let ps = read_password_confirmed("Payment password: ", "Confirm payment password: ")?;
         Ok(Some(ps))
@@ -146,11 +147,16 @@ fn ask_payment_secret() -> Result<Option<String>> {
 /// Interactively prompt for an optional priority fee.
 /// Returns `None` if the user presses Enter (meaning 0 / no extra fee).
 fn ask_priority_fee() -> Result<Option<String>> {
-    use std::io::{Write, BufRead};
+    use std::io::{BufRead, Write};
     print!("Priority fee in KAS [0]: ");
-    std::io::stdout().flush().context("Failed to flush stdout")?;
+    std::io::stdout()
+        .flush()
+        .context("Failed to flush stdout")?;
     let mut line = String::new();
-    std::io::stdin().lock().read_line(&mut line).context("Failed to read input")?;
+    std::io::stdin()
+        .lock()
+        .read_line(&mut line)
+        .context("Failed to read input")?;
     let trimmed = line.trim();
     if trimmed.is_empty() || trimmed == "0" {
         Ok(None)
