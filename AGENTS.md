@@ -5,7 +5,7 @@ Important: Please keep this file up to date.
 ## What This Project Does
 
 A minimal, single-binary Kaspa CLI wallet (`kaspa-wallet`) built to enable automation.
-It exposes four subcommands — `create`, `balance`, `send`, `sweep` — via a thin Rust wrapper around the rusty-kaspa wallet SDK. 
+It exposes five subcommands — `create`, `balance`, `send`, `sweep`, `export` — via a thin Rust wrapper around the rusty-kaspa wallet SDK. 
 Wallet files are stored locally in `~/.simply-kaspa-cli-wallet/<network>/<wallet_name>`.
 
 ---
@@ -30,12 +30,12 @@ Everything listed below is provided by the SDK crates and requires **no custom l
 
 ## What This Repo Adds
 
-- **CLI parsing** (clap) — global flags: `--rpc-url`, `--network`, `--password`, `--wallet-name`.
+- **CLI parsing** (clap) — global flags: `--rpc-url`, `--network`, `--password`, `--payment-secret`, `--wallet-name`.
 - **DNS-seeder resolution for testnet-10 and testnet-12**: queries `n-testnet-10.kaspa.ws` / `n-testnet-12.kaspa.ws` respectively, TCP-probes each returned IPv4 (3 s timeout), returns the first live node as `ws://ip:port`. All other networks (including mainnet) fall through to the SDK's public resolver.
 - **Storage path wiring**: calls the SDK's unsafe `set_default_storage_folder` to point at `~/.simply-kaspa-cli-wallet/<network>/` before any wallet operation.
 - **Per-address UTXO breakdown** in `balance`: combines the SDK's mature-UTXO data with a direct `rpc_api().get_utxos_by_addresses()` call to also surface pending (immature coinbase) amounts.
 - **Explorer links**: prints `kaspa.stream` (mainnet) or `tn{N}.kaspa.stream` (testnet) URLs for each submitted transaction.
-- **Password prompting** via `rpassword` (with confirmation on `create`).
+- **Password prompting** via `rpassword` (with confirmation on `create`). Payment password (`--payment-secret`) is optional on `create`/`export`; prompted interactively during `create` if not supplied via flag.
 - **Docker build** (Alpine, musl, static-ish binary, non-root user 13337).
 
 ---
@@ -52,6 +52,7 @@ src/
     balance.rs     — connects, waits for Balance events, queries node for pending
     send.rs        — connects, waits for Balance events, calls account.send()
     sweep.rs       — connects, waits for Balance events, calls account.sweep()
+    export.rs      — local-only; prints the mnemonic seed phrase
 ```
 
 ### Non-obvious implementation details
@@ -61,8 +62,10 @@ src/
 - **UTXO readiness pattern**: after `activate_accounts`, the code waits (up to 30 s) for a `Balance` event per account before proceeding. This is how the SDK signals that the initial UTXO scan has been submitted.
 - **`set_default_storage_folder` is `unsafe`** and must be called once, before wallet init, from the main thread. It is wrapped in `wallet::init_storage`.
 - **Units**: user-facing amounts are in KAS; all SDK internals use sompi (1 KAS = 100 000 000 sompi). Conversion uses `try_kaspa_str_to_sompi` / `sompi_to_kaspa_string_with_suffix`.
-- **Only the first active account is used** for `send` and `sweep` (`active_accounts().first()`).
+- **Only the first active account is used** for `send`, `sweep`, and `export` (`active_accounts().first()` / first descriptor).
 - **Sweep** consolidates all UTXOs into one. Useful for wallets with many small UTXOs (reduces future fees). The notifier prints a running "UTXOs remaining" counter.
+- **Export** (`export` subcommand) is local-only (no RPC). It calls `prv_key_data_get_call` with the wallet secret, then `PrvKeyData::as_mnemonic(payment_secret)`. The payload may be double-encrypted: wallet secret decrypts the outer layer (always); payment secret decrypts the inner layer (only when `payload.is_encrypted()` is true).
+- **Payment secret** (BIP39 passphrase): wired through `PrvKeyDataCreateArgs` and `AccountCreateArgs::new_bip32` during `create`. During interactive `create`, the user is prompted "Use a payment password? [y/N]:" — a plain stdin line read followed by `rpassword` prompts for the secret. Non-interactive `create` uses `--payment-secret` flag or skips it.
 
 ---
 

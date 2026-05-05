@@ -23,6 +23,7 @@ pub async fn run(
     account_name: Option<String>,
     import_mnemonic: Option<String>,
     password: String,
+    payment_secret: Option<String>,
 ) -> Result<()> {
     init_storage(&network_id)?;
 
@@ -61,9 +62,10 @@ pub async fn run(
     };
 
     // --- 3. Register private key ---
+    let payment_secret_opt = payment_secret.as_deref().map(|s| Secret::new(s.as_bytes().to_vec()));
     let prv_key_args = PrvKeyDataCreateArgs::new(
         None,
-        None,
+        payment_secret_opt.clone(),
         Secret::new(mnemonic_phrase.as_bytes().to_vec()),
         PrvKeyDataVariantKind::Mnemonic,
     );
@@ -79,7 +81,7 @@ pub async fn run(
     // --- 4. Create account ---
     let account_create_args = AccountCreateArgs::new_bip32(
         prv_key_resp.prv_key_data_id,
-        None,
+        payment_secret_opt,
         account_name.clone().or_else(|| Some("default".to_string())),
         None,
     );

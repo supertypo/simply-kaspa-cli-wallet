@@ -16,9 +16,21 @@ async fn main() -> Result<()> {
 
     match args.command {
         Command::Create { account_name, import } => {
-            let password = match args.password {
-                Some(p) => p,
-                None => read_password_confirmed("Wallet password: ", "Confirm password: ")?,
+            let (password, payment_secret) = match args.password {
+                Some(p) => {
+                    // Non-interactive: use --payment-secret if provided, else None
+                    (p, args.payment_secret)
+                }
+                None => {
+                    // Interactive: prompt for wallet password, then optionally payment password
+                    let pwd = read_password_confirmed("Wallet password: ", "Confirm password: ")?;
+                    let ps = if args.payment_secret.is_some() {
+                        args.payment_secret
+                    } else {
+                        ask_payment_secret()?
+                    };
+                    (pwd, ps)
+                }
             };
             commands::create::run(
                 network_id,
@@ -27,6 +39,7 @@ async fn main() -> Result<()> {
                 account_name,
                 import,
                 password,
+                payment_secret,
             )
             .await?;
         }
@@ -72,6 +85,19 @@ async fn main() -> Result<()> {
             )
             .await?;
         }
+        Command::Export => {
+            let password = match args.password {
+                Some(p) => p,
+                None => read_password("Wallet password: ")?,
+            };
+            commands::export::run(
+                network_id,
+                args.wallet_name,
+                password,
+                args.payment_secret,
+            )
+            .await?;
+        }
     }
 
     Ok(())
@@ -86,4 +112,20 @@ fn read_password_confirmed(prompt: &str, confirm_prompt: &str) -> Result<String>
     let confirm = rpassword::prompt_password(confirm_prompt).context("Failed to read password")?;
     anyhow::ensure!(password == confirm, "Passwords do not match");
     Ok(password)
+}
+
+/// Interactively ask whether the user wants a BIP39 payment password.
+/// Returns `Some(secret)` if yes, `None` if no.
+fn ask_payment_secret() -> Result<Option<String>> {
+    use std::io::{Write, BufRead};
+    print!("Use a payment password? [y/N]: ");
+    std::io::stdout().flush().context("Failed to flush stdout")?;
+    let mut line = String::new();
+    std::io::stdin().lock().read_line(&mut line).context("Failed to read input")?;
+    if line.trim().eq_ignore_ascii_case("y") {
+        let ps = read_password_confirmed("Payment password: ", "Confirm payment password: ")?;
+        Ok(Some(ps))
+    } else {
+        Ok(None)
+    }
 }

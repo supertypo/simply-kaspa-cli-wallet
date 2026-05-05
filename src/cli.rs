@@ -15,6 +15,10 @@ pub struct Cli {
     #[arg(long, short = 'p', global = true)]
     pub password: Option<String>,
 
+    /// BIP39 payment password / passphrase (omit to be prompted interactively during create/export)
+    #[arg(long, global = true)]
+    pub payment_secret: Option<String>,
+
     /// Wallet name (filename under ~/.simply-kaspa-cli-wallet/<network>/). [default: main]
     #[arg(long, short = 'w', global = true, default_value = "main")]
     pub wallet_name: String,
@@ -56,4 +60,7 @@ pub enum Command {
 
     /// Sweep all UTXOs into a single UTXO at the account's first address
     Sweep,
+
+    /// Print the mnemonic seed phrase for the wallet
+    Export,
 }
