@@ -56,6 +56,10 @@ pub enum Command {
         /// Optional priority fee in KAS
         #[arg(long)]
         priority_fee: Option<String>,
+
+        /// Optional transaction payload. Prefix with 0x for hex-encoded binary, otherwise treated as UTF-8 text.
+        #[arg(long)]
+        payload: Option<String>,
     },
 
     /// Sweep all UTXOs into a single UTXO at the account's first address

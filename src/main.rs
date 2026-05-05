@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
             )
             .await?;
         }
-        Command::Send { to_address, amount, priority_fee } => {
+        Command::Send { to_address, amount, priority_fee, payload } => {
             let password = match args.password {
                 Some(p) => p,
                 None => read_password("Wallet password: ")?,
@@ -69,6 +69,7 @@ async fn main() -> Result<()> {
                 to_address,
                 amount,
                 priority_fee,
+                payload,
             )
             .await?;
         }

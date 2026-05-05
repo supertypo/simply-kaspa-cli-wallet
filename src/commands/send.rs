@@ -27,6 +27,7 @@ pub async fn run(
     to_address: String,
     amount: String,
     priority_fee: Option<String>,
+    payload: Option<String>,
 ) -> Result<()> {
     init_storage(&network_id)?;
 
@@ -143,6 +144,21 @@ pub async fn run(
     let abortable = Abortable::default();
     let explorer = explorer_base(&network_id);
 
+    // Parse payload: 0x-prefixed → hex binary, otherwise → UTF-8 bytes
+    let tx_payload: Option<Vec<u8>> = match payload {
+        None => None,
+        Some(ref s) if s.starts_with("0x") || s.starts_with("0X") => {
+            let hex_str = &s[2..];
+            let bytes = (0..hex_str.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&hex_str[i..i + 2], 16))
+                .collect::<Result<Vec<u8>, _>>()
+                .context("Invalid hex payload")?;
+            Some(bytes)
+        }
+        Some(ref s) => Some(s.as_bytes().to_vec()),
+    };
+
     println!("Sending {} to {}", sompi_to_kaspa_string_with_suffix(amount_sompi, &network_id.network_type), address);
     println!();
     println!("Transactions:");
@@ -161,7 +177,7 @@ pub async fn run(
             outputs.into(),
             None,
             priority_fee_sompi.into(),
-            None,
+            tx_payload,
             wallet_secret,
             None,
             &abortable,
