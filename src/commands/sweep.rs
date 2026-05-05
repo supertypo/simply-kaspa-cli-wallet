@@ -143,7 +143,6 @@ pub async fn run(
         }
     });
 
-    println!("Transactions:");
     let (summary, tx_ids): (GeneratorSummary, Vec<_>) = account
         .sweep(wallet_secret, None, None, &abortable, Some(notifier))
         .await
@@ -151,6 +150,7 @@ pub async fn run(
 
     if tx_ids.is_empty() {
         println!("Nothing to sweep — wallet already has a single UTXO or is empty.");
+        println!();
     } else {
         println!();
         let fees = sompi_to_kaspa_string_with_suffix(summary.aggregate_fees, &network_id.network_type);
@@ -160,6 +160,7 @@ pub async fn run(
             summary.number_of_generated_transactions,
             fees
         );
+        println!();
     }
 
     wallet.stop().await.ok();

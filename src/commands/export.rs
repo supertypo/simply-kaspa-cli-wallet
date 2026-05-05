@@ -92,8 +92,8 @@ pub async fn run(
     println!();
     println!("  {}", mnemonic.phrase());
     println!();
-    println!("Wallet  : {}", wallet_name);
-    println!("Network : {}", network_id);
+    println!("Wallet : {}", wallet_name);
+    println!("Network: {}", network_id);
 
     Ok(())
 }

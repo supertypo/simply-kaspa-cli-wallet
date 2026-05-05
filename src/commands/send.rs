@@ -172,11 +172,15 @@ pub async fn run(
 
     println!();
     println!(
-        "Sent {} to {}. Fees: {}",
+        "Sent {} to {}",
         sompi_to_kaspa_string_with_suffix(amount_sompi, &network_id.network_type),
         address,
+    );
+    println!(
+        "Fees: {}",
         sompi_to_kaspa_string_with_suffix(summary.aggregate_fees, &network_id.network_type)
     );
+    println!();
 
     wallet.stop().await.ok();
     Ok(())

@@ -105,15 +105,12 @@ pub async fn run(
         println!();
     }
 
-    println!("Wallet     : {}", wallet_name);
-    println!(
-        "Account    : {}",
-        account_name.as_deref().unwrap_or("default")
-    );
+    println!("Wallet : {}", wallet_name);
+    println!("Network: {}", network_id);
+    println!("Account: {}", account_name.as_deref().unwrap_or("default"));
     if let Some(addr) = &account_resp.account_descriptor.receive_address {
-        println!("Address    : {}", addr);
+        println!("Address: {}", addr);
     }
-    println!("Network    : {}", network_id);
 
     Ok(())
 }
