@@ -10,7 +10,7 @@ use kaspa_wallet_core::{
     },
     deterministic::AccountId,
     events::Events,
-    tx::{generator::summary::GeneratorSummary, PaymentOutputs},
+    tx::{Fees, generator::summary::GeneratorSummary, PaymentDestination, PaymentOutputs},
     utils::{sompi_to_kaspa_string_with_suffix, try_kaspa_str_to_sompi},
     prelude::Address,
 };
@@ -28,8 +28,25 @@ pub async fn run(
     amount: String,
     priority_fee: Option<String>,
     payload: Option<String>,
+    interactive: bool,
+    no_confirmation: bool,
 ) -> Result<()> {
     init_storage(&network_id)?;
+
+    // Parse and validate priority fee early — before any network connection
+    let priority_fee_sompi: i64 = match priority_fee {
+        Some(ref s) => kaspa_wallet_core::utils::try_kaspa_str_to_sompi_i64(s)
+            .context("Invalid priority fee")?
+            .unwrap_or(0),
+        None => 0,
+    };
+    const MAX_PRIORITY_FEE_SOMPI: i64 = 10_000_000_000; // 100 KAS
+    if priority_fee_sompi > MAX_PRIORITY_FEE_SOMPI {
+        anyhow::bail!(
+            "Priority fee {} exceeds the maximum allowed (100 KAS). Aborting.",
+            sompi_to_kaspa_string_with_suffix(priority_fee_sompi as u64, &network_id.network_type)
+        );
+    }
 
     let rpc_url = resolve_url(rpc_url, network_id).await?;
     let wallet = build_wallet(rpc_url.clone(), network_id)?;
@@ -133,13 +150,6 @@ pub async fn run(
         .filter(|&v| v > 0)
         .with_context(|| format!("Amount must be greater than zero: {}", amount))?;
 
-    let priority_fee_sompi: i64 = match priority_fee {
-        Some(ref s) => kaspa_wallet_core::utils::try_kaspa_str_to_sompi_i64(s)
-            .context("Invalid priority fee")?
-            .unwrap_or(0),
-        None => 0,
-    };
-
     let outputs = PaymentOutputs::from((address.clone(), amount_sompi));
     let abortable = Abortable::default();
     let explorer = explorer_base(&network_id);
@@ -159,8 +169,82 @@ pub async fn run(
         Some(ref s) => Some(s.as_bytes().to_vec()),
     };
 
-    println!("Sending {} to {}", sompi_to_kaspa_string_with_suffix(amount_sompi, &network_id.network_type), address);
+    // --- Estimate ---
+    let estimate = account
+        .clone()
+        .estimate(
+            PaymentDestination::from(outputs.clone()),
+            None,
+            Fees::from(priority_fee_sompi as i64),
+            tx_payload.clone(),
+            &abortable,
+        )
+        .await
+        .context("Failed to estimate transaction")?;
+
+    let total_sompi = amount_sompi + estimate.aggregate_fees;
+    let fees_str = sompi_to_kaspa_string_with_suffix(estimate.aggregate_fees, &network_id.network_type);
+    let fees_display = if priority_fee_sompi > 1_000_000_000 {
+        // > 10 KAS priority fee: highlight in bright orange
+        format!("\x1b[38;5;208m{}\x1b[0m", fees_str)
+    } else {
+        fees_str
+    };
+    println!(
+        "Amount : {}",
+        sompi_to_kaspa_string_with_suffix(amount_sompi, &network_id.network_type)
+    );
+    println!("Fees   : {}", fees_display);
+    println!(
+        "Total  : {}",
+        sompi_to_kaspa_string_with_suffix(total_sompi, &network_id.network_type)
+    );
+    println!("UTXOs  : {} ({} transaction(s))", estimate.aggregated_utxos, estimate.number_of_generated_transactions);
+    println!("To     : {}", address);
     println!();
+
+    if !no_confirmation {
+        if interactive {
+            use std::io::{Write, BufRead};
+            // Extra dedicated warning + confirmation when priority fee is unusually high (> 10 KAS)
+            if priority_fee_sompi > 1_000_000_000 {
+                println!(
+                    "\x1b[38;5;208m⚠  Priority fee is unusually high ({}).\x1b[0m",
+                    sompi_to_kaspa_string_with_suffix(priority_fee_sompi as u64, &network_id.network_type)
+                );
+                print!("This fee seems excessive. Are you sure? [y/N]: ");
+                std::io::stdout().flush().ok();
+                let mut warn_line = String::new();
+                std::io::stdin().lock().read_line(&mut warn_line).context("Failed to read input")?;
+                if !warn_line.trim().eq_ignore_ascii_case("y") {
+                    println!("Aborted.");
+                    wallet.stop().await.ok();
+                    return Ok(());
+                }
+                println!();
+            }
+            print!("Confirm? [y/N]: ");
+            std::io::stdout().flush().ok();
+            let mut line = String::new();
+            std::io::stdin().lock().read_line(&mut line).context("Failed to read input")?;
+            if !line.trim().eq_ignore_ascii_case("y") {
+                println!("Aborted.");
+                wallet.stop().await.ok();
+                return Ok(());
+            }
+            println!();
+        } else {
+            use std::io::Write;
+            for i in (1u8..=9).rev() {
+                print!("\rSending in {}... (Ctrl+C to abort)", i);
+                std::io::stdout().flush().ok();
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
+            println!("\rSending...        ");
+            println!();
+        }
+    }
+
     println!("Transactions:");
 
     let notifier: kaspa_wallet_core::account::GenerationNotifier = Arc::new(move |tx| {

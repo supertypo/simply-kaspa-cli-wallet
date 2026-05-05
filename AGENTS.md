@@ -30,12 +30,15 @@ Everything listed below is provided by the SDK crates and requires **no custom l
 
 ## What This Repo Adds
 
-- **CLI parsing** (clap) — global flags: `--rpc-url`, `--network`, `--password`, `--payment-secret`, `--wallet-name`.
+- **CLI parsing** (clap) — global flags: `--rpc-url`, `--network`, `--password`, `--payment-secret`, `--wallet-name`, `--no-confirmation`.
 - **DNS-seeder resolution for testnet-10 and testnet-12**: queries `n-testnet-10.kaspa.ws` / `n-testnet-12.kaspa.ws` respectively, TCP-probes each returned IPv4 (3 s timeout), returns the first live node as `ws://ip:port`. All other networks (including mainnet) fall through to the SDK's public resolver.
 - **Storage path wiring**: calls the SDK's unsafe `set_default_storage_folder` to point at `~/.simply-kaspa-cli-wallet/<network>/` before any wallet operation.
 - **Per-address UTXO breakdown** in `balance`: combines the SDK's mature-UTXO data with a direct `rpc_api().get_utxos_by_addresses()` call to also surface pending (immature coinbase) amounts.
 - **Explorer links**: prints `kaspa.stream` (mainnet) or `tn{N}.kaspa.stream` (testnet) URLs for each submitted transaction.
 - **Password prompting** via `rpassword` (with confirmation on `create`). Payment password (`--payment-secret`) is optional on `create`/`export`; prompted interactively during `create` if not supplied via flag.
+- **Transaction payload** (`--payload` on `send`): `0x`-prefixed value is decoded as hex bytes; any other string is passed as raw UTF-8 bytes.
+- **Priority fee** (`--priority-fee` on `send`): extra fee in KAS added on top of the SDK-calculated minimum. Prompted interactively (default 0) when `--password` is not supplied via flag.
+- **Pre-send/pre-sweep estimation and confirmation**: before executing `send` or `sweep`, the SDK's `account.estimate()` is called for a dry run. The estimated fees, UTXO count, and transaction count are printed. In interactive mode (`--password` not passed), the user is shown a `Confirm? [y/N]:` prompt. In non-interactive mode, a 5-second live countdown (`Sending in 5… 4… 3… 2… 1…`) is shown on a single overwriting line. Both can be bypassed with `--no-confirmation`.
 - **Docker build** (Alpine, musl, static-ish binary, non-root user 13337).
 
 ---
@@ -66,6 +69,8 @@ src/
 - **Sweep** consolidates all UTXOs into one. Useful for wallets with many small UTXOs (reduces future fees). The notifier prints a running "UTXOs remaining" counter.
 - **Export** (`export` subcommand) is local-only (no RPC). It calls `prv_key_data_get_call` with the wallet secret, then `PrvKeyData::as_mnemonic(payment_secret)`. The payload may be double-encrypted: wallet secret decrypts the outer layer (always); payment secret decrypts the inner layer (only when `payload.is_encrypted()` is true).
 - **Payment secret** (BIP39 passphrase): wired through `PrvKeyDataCreateArgs` and `AccountCreateArgs::new_bip32` during `create`. During interactive `create`, the user is prompted "Use a payment password? [y/N]:" — a plain stdin line read followed by `rpassword` prompts for the secret. Non-interactive `create` uses `--payment-secret` flag or skips it.
+- **Pre-send/pre-sweep estimation**: `account.estimate()` is called before `account.send()` / `account.sweep()`. For send, it uses the same `PaymentDestination`, priority fee, and payload as the real call. For sweep, `PaymentDestination::Change` and `Fees::None` are passed. This is a dry-run (no signing/broadcast) and returns `GeneratorSummary` with `aggregate_fees`, `aggregated_utxos`, `number_of_generated_transactions`.
+- **Confirmation modes**: interactive (`--password` not passed as flag) shows `Confirm? [y/N]:` prompt; non-interactive shows a 5-second live countdown on a single overwriting terminal line (`Sending in 5… 4… 3… 2… 1…`). Both are skipped with `--no-confirmation`.
 
 ---
 

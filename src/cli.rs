@@ -23,6 +23,10 @@ pub struct Cli {
     #[arg(long, short = 'w', global = true, default_value = "main")]
     pub wallet_name: String,
 
+    /// Skip confirmation prompt (interactive) or countdown (non-interactive) before send/sweep
+    #[arg(long, global = true)]
+    pub no_confirmation: bool,
+
     #[command(subcommand)]
     pub command: Command,
 }

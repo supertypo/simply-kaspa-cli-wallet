@@ -57,9 +57,17 @@ async fn main() -> Result<()> {
             .await?;
         }
         Command::Send { to_address, amount, priority_fee, payload } => {
-            let password = match args.password {
-                Some(p) => p,
-                None => read_password("Wallet password: ")?,
+            let (password, interactive, priority_fee) = match args.password {
+                Some(p) => (p, false, priority_fee),
+                None => {
+                    let pwd = read_password("Wallet password: ")?;
+                    let pf = if priority_fee.is_some() {
+                        priority_fee
+                    } else {
+                        ask_priority_fee()?
+                    };
+                    (pwd, true, pf)
+                }
             };
             commands::send::run(
                 network_id,
@@ -70,19 +78,23 @@ async fn main() -> Result<()> {
                 amount,
                 priority_fee,
                 payload,
+                interactive,
+                args.no_confirmation,
             )
             .await?;
         }
         Command::Sweep => {
-            let password = match args.password {
-                Some(p) => p,
-                None => read_password("Wallet password: ")?,
+            let (password, interactive) = match args.password {
+                Some(p) => (p, false),
+                None => (read_password("Wallet password: ")?, true),
             };
             commands::sweep::run(
                 network_id,
                 args.rpc_url,
                 args.wallet_name,
                 password,
+                interactive,
+                args.no_confirmation,
             )
             .await?;
         }
@@ -128,5 +140,21 @@ fn ask_payment_secret() -> Result<Option<String>> {
         Ok(Some(ps))
     } else {
         Ok(None)
+    }
+}
+
+/// Interactively prompt for an optional priority fee.
+/// Returns `None` if the user presses Enter (meaning 0 / no extra fee).
+fn ask_priority_fee() -> Result<Option<String>> {
+    use std::io::{Write, BufRead};
+    print!("Priority fee in KAS [0]: ");
+    std::io::stdout().flush().context("Failed to flush stdout")?;
+    let mut line = String::new();
+    std::io::stdin().lock().read_line(&mut line).context("Failed to read input")?;
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed == "0" {
+        Ok(None)
+    } else {
+        Ok(Some(trimmed.to_string()))
     }
 }

@@ -7,7 +7,7 @@ use kaspa_wallet_core::{
     api::{message::{AccountsGetUtxosRequest, WalletOpenRequest}, traits::WalletApi},
     deterministic::AccountId,
     events::Events,
-    tx::generator::summary::GeneratorSummary,
+    tx::{Fees, PaymentDestination, generator::summary::GeneratorSummary},
     utils::sompi_to_kaspa_string_with_suffix,
 };
 use kaspa_wallet_keys::secret::Secret;
@@ -20,6 +20,8 @@ pub async fn run(
     rpc_url: Option<String>,
     wallet_name: String,
     password: String,
+    interactive: bool,
+    no_confirmation: bool,
 ) -> Result<()> {
     init_storage(&network_id)?;
 
@@ -114,6 +116,51 @@ pub async fn run(
     println!("  Balance : {}", sompi_to_kaspa_string_with_suffix(total_balance, &network_id.network_type));
     println!("  UTXOs   : {}", total_utxos);
     println!();
+
+    // --- Estimate ---
+    let estimate = account
+        .clone()
+        .estimate(
+            PaymentDestination::Change,
+            None,
+            Fees::None,
+            None,
+            &abortable,
+        )
+        .await
+        .context("Failed to estimate sweep")?;
+
+    println!(
+        "Fees   : {}",
+        sompi_to_kaspa_string_with_suffix(estimate.aggregate_fees, &network_id.network_type)
+    );
+    println!("UTXOs  : {} ({} transaction(s))", estimate.aggregated_utxos, estimate.number_of_generated_transactions);
+    println!();
+
+    if !no_confirmation {
+        if interactive {
+            use std::io::{Write, BufRead};
+            print!("Confirm? [y/N]: ");
+            std::io::stdout().flush().ok();
+            let mut line = String::new();
+            std::io::stdin().lock().read_line(&mut line).context("Failed to read input")?;
+            if !line.trim().eq_ignore_ascii_case("y") {
+                println!("Aborted.");
+                wallet.stop().await.ok();
+                return Ok(());
+            }
+            println!();
+        } else {
+            use std::io::Write;
+            for i in (1u8..=5).rev() {
+                print!("\rSweeping in {}...  ", i);
+                std::io::stdout().flush().ok();
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
+            println!("\rSweeping...       ");
+            println!();
+        }
+    }
 
     let explorer = explorer_base(&network_id);
 
